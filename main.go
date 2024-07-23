@@ -12,12 +12,14 @@ import (
 func main() {
 	appConfig := NewConfig("config.yaml")
 
-	consumer, err := nsq.NewConsumer(appConfig.Nsq.Topic, appConfig.Nsq.Channel, nsq.NewConfig())
+	nsqConfig := nsq.NewConfig()
+	nsqConfig.MaxInFlight = appConfig.Nsq.MaxInFlight
+	consumer, err := nsq.NewConsumer(appConfig.Nsq.Topic, appConfig.Nsq.Channel, nsqConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	consumer.AddHandler(NewSearchSync(appConfig))
+	consumer.AddConcurrentHandlers(NewSearchSync(appConfig), appConfig.Nsq.Concurrency)
 
 	err = consumer.ConnectToNSQLookupd(appConfig.Nsq.Address)
 	if err != nil {

@@ -7,17 +7,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Privacy struct {
-	Namespace       string
-	AnonymizedTable string
-	Pivot           string
-}
-
 type Replica struct {
 	Namespace  string
 	Index      string
 	PrimaryKey string `yaml:"pk"`
-	Privacy    Privacy
 }
 
 type Config struct {
@@ -29,9 +22,11 @@ type Config struct {
 		ApiKey string
 	}
 	Nsq struct {
-		Address string
-		Channel string
-		Topic   string
+		Address     string
+		Channel     string
+		Topic       string
+		MaxInFlight int
+		Concurrency int
 	}
 	Replicas map[string]Replica
 }
@@ -64,9 +59,6 @@ func (s *Config) init() {
 	for name, rep := range s.Replicas {
 		if rep.Namespace == "" {
 			rep.Namespace = "public"
-		}
-		if rep.Privacy.Namespace == "" {
-			rep.Privacy.Namespace = "anonymized"
 		}
 		if rep.Index == "" {
 			rep.Index = name

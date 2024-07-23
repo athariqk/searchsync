@@ -3,7 +3,7 @@ module github.com/athariqk/anonymizer
 go 1.21.6
 
 require (
-	github.com/athariqk/pgcdc-models v0.1.4
+	github.com/athariqk/pgcdc-models v0.1.7
 	github.com/lib/pq v1.10.9
 	github.com/meilisearch/meilisearch-go v0.27.0
 	github.com/nsqio/go-nsq v1.1.0

@@ -16,7 +16,7 @@ type SearchSync struct {
 	config       *Config
 	db           *sql.DB
 	searchClient *meilisearch.Client
-	// batch        []*pgcdcmodels.Row
+	batch        []pgcdcmodels.Row
 }
 
 func NewSearchSync(config *Config) *SearchSync {
@@ -56,41 +56,20 @@ func (s *SearchSync) HandleMessage(msg *nsq.Message) error {
 		return superError
 	}
 
-	var tasks []*meilisearch.TaskInfo
+	var tasks []meilisearch.TaskInfo
 	switch replicationMsg.ReplicationFlag {
+	case pgcdcmodels.FULL_REPLICATION_NEW_ROWS:
+		s.batch = nil
 	case pgcdcmodels.FULL_REPLICATION_PROGRESS:
-		// s.batch = append(s.batch, &replicationMsg.Command.Data)
-		rep, ok := s.config.Replicas[replicationMsg.Command.Data.RelName]
-		if !ok {
-			break
+		_, ok := s.config.Replicas[replicationMsg.Command.Data.RelName]
+		if ok {
+			s.batch = append(s.batch, replicationMsg.Command.Data)
 		}
-		resp, err := s.handleUpsert(rep, &replicationMsg.Command.Data)
-		tasks = []*meilisearch.TaskInfo{resp}
-		superError = err
 	case pgcdcmodels.FULL_REPLICATION_FINISHED:
-		// WHY WON"T BATCHING WORK CORRECTLY GODDAMNIT
-		// rep, ok := s.config.Replicas[replicationMsg.Command.Data.RelName]
-		// if !ok {
-		// 	log.Printf("Ignoring replica `%s`", replicationMsg.Command.Data.RelName)
-		// 	break
-		// }
-
-		// if rep.Privacy.AnonymizedTable != "" {
-		// 	tasks, superError = s.handlePrivacyInBatch(rep, replicationMsg.Command.Data.RelName)
-		// 	break
-		// }
-
-		// documents := []map[string]interface{}{}
-		// for _, r := range s.batch {
-		// 	documents = append(documents, pgcdcmodels.Flatten(r.Fields, false))
-		// }
-
-		// tasks, superError = s.searchClient.Index(rep.Index).UpdateDocumentsInBatches(documents, 50, rep.PrimaryKey)
-		// log.Println("replication message ended for index:", rep.Index)
-		// s.batch = nil
+		tasks, superError = s.processBatch()
 	case pgcdcmodels.STREAM_REPLICATION:
 		resp, err := s.handleStreamReplication(msg, replicationMsg.Command)
-		tasks = []*meilisearch.TaskInfo{resp}
+		tasks = []meilisearch.TaskInfo{*resp}
 		superError = err
 	}
 
@@ -102,9 +81,6 @@ func (s *SearchSync) HandleMessage(msg *nsq.Message) error {
 		failedTasks := 0
 		successfulTasks := 0
 		for _, task := range tasks {
-			if task == nil {
-				continue
-			}
 			waited, err := s.searchClient.WaitForTask(task.TaskUID)
 			if err != nil {
 				return err
@@ -123,14 +99,24 @@ func (s *SearchSync) HandleMessage(msg *nsq.Message) error {
 	return nil
 }
 
-// func (s *SearchSync) handleFullReplication() ([]meilisearch.TaskInfo, error) {
-// 	log.Printf("got %v batched DML commands of total %v, now upserting all", s.batch.receivedRowsCount, s.actualTotalRowsCount)
-// 	resps, err := s.handleUpsertInBatch()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return resps, err
-// }
+func (s *SearchSync) processBatch() ([]meilisearch.TaskInfo, error) {
+	if len(s.batch) <= 0 {
+		log.Println("batch is empty, something is not right but ignoring...")
+		return nil, nil
+	}
+
+	rep := s.config.Replicas[s.batch[0].RelName]
+
+	var flattened []map[string]interface{}
+	for _, row := range s.batch {
+		flattened = append(flattened, pgcdcmodels.Flatten(row.Fields, false))
+	}
+
+	log.Printf("got %v batched DML commands, now upserting all", len(flattened))
+	resps, err := s.searchClient.Index(rep.Index).UpdateDocumentsInBatches(flattened, 50, rep.PrimaryKey)
+	s.batch = nil
+	return resps, err
+}
 
 func (s *SearchSync) handleStreamReplication(_ *nsq.Message, command *pgcdcmodels.DmlCommand) (*meilisearch.TaskInfo, error) {
 	rep, ok := s.config.Replicas[command.Data.RelName]

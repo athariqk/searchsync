@@ -9,7 +9,6 @@ on:
 
 jobs:
   build:
-    environment: Build and Deploy
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -20,7 +19,10 @@ jobs:
         go-version: '1.21.6'
 
     - name: Build
-      run: go build -v -o build_output/searchsyncer
+      run: go build -v -o build_output/searchsync
+
+    - name: Give exec permission
+      run: chmod +x build_output/searchsync
 
     - name: Test
       run: go test -v ./...
@@ -32,7 +34,6 @@ jobs:
         path: build_output/
 
   deploy:
-    environment: Build and Deploy
     runs-on: ubuntu-latest
     needs: build
 

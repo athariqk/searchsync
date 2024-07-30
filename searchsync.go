@@ -69,7 +69,9 @@ func (s *SearchSync) HandleMessage(msg *nsq.Message) error {
 		tasks, superError = s.processBatch()
 	case pgcdcmodels.STREAM_REPLICATION:
 		resp, err := s.handleStreamReplication(msg, replicationMsg.Command)
-		tasks = []meilisearch.TaskInfo{*resp}
+		if resp != nil {
+			tasks = []meilisearch.TaskInfo{*resp}
+		}
 		superError = err
 	}
 

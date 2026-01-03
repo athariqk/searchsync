@@ -1,4 +1,4 @@
-module github.com/athariqk/anonymizer
+module github.com/athariqk/searchsync
 
 go 1.21.6
 

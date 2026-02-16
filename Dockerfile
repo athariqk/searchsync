@@ -9,9 +9,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o searchsync .
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=builder /app/searchsync ./searchsync
-COPY config.yaml ./config.yaml
-COPY .env* ./
+COPY config.example.yaml ./config.example.yaml
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 RUN adduser -D -u 10002 searchsyncuser
 USER searchsyncuser
 EXPOSE 8090
-ENTRYPOINT ["./searchsync"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

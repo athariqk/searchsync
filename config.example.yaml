@@ -1,0 +1,15 @@
+# Example config for searchsync
+# Copy this to config.yaml and replace values, or mount a production config.yaml at runtime.
+
+meilisearch:
+  host: "http://meilisearch:7700"
+  apiKey: "" # set via secret or env
+
+nsq:
+  address: "nsq:4150"
+
+database:
+  dsn: "postgres://user:pass@postgres:5432/dbname?sslmode=disable"
+
+# NOTE: This file is intentionally non-secret and only provides defaults/example values.
+# Do NOT include real secrets here — provide them at runtime via mounts or secret managers.

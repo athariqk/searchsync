@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	appConfig := NewConfig("config.yaml")
+	appConfig := NewConfig(".env", "replica.yaml")
 
 	nsqConfig := nsq.NewConfig()
 	nsqConfig.MaxInFlight = appConfig.Nsq.MaxInFlight

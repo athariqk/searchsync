@@ -1,0 +1,7 @@
+# Example replica config for searchsync
+# Copy this to replica.yaml and replace values, or mount a production replica.yaml at runtime.
+
+replicas:
+  table:
+    index: "name"
+  # other entities to sync

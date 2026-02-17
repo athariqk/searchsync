@@ -4,6 +4,9 @@ import (
 	"log"
 	"os"
 
+	"strconv"
+
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,20 +34,55 @@ type Config struct {
 	Replicas map[string]Replica
 }
 
-func NewConfig(filePath string) *Config {
-	bytes, err := os.ReadFile(filePath)
+func NewConfig(envFile string, replicaYaml string) *Config {
+	// Load .env file if it exists
+	if _, err := os.Stat(envFile); err == nil {
+		if err := godotenv.Load(envFile); err != nil {
+			log.Printf("Warning: failed to load env file: %v", err)
+		}
+	}
+
+	bytes, err := os.ReadFile(replicaYaml)
 	if err != nil {
-		log.Fatal("Failed reading config.yaml: ", err)
+		log.Fatal("Failed reading config YAML: ", err)
 	}
 
 	config := &Config{}
 	err = yaml.Unmarshal(bytes, config)
 	if err != nil {
-		log.Fatal("Failed parsing config.yaml: ", err)
+		log.Fatal("Failed parsing config YAML: ", err)
+	}
+
+	if v, ok := os.LookupEnv("DATABASE_URL"); ok {
+		config.Database.ConnectionString = v
+	}
+	if v, ok := os.LookupEnv("MEILI_HOST_URL"); ok {
+		config.Meilisearch.Host = v
+	}
+	if v, ok := os.LookupEnv("MEILI_API_KEY"); ok {
+		config.Meilisearch.ApiKey = v
+	}
+	if v, ok := os.LookupEnv("NSQ_ADDRESS"); ok {
+		config.Nsq.Address = v
+	}
+	if v, ok := os.LookupEnv("NSQ_CHANNEL"); ok {
+		config.Nsq.Channel = v
+	}
+	if v, ok := os.LookupEnv("NSQ_TOPIC"); ok {
+		config.Nsq.Topic = v
+	}
+	if v, ok := os.LookupEnv("NSQ_MAX_IN_FLIGHT"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			config.Nsq.MaxInFlight = n
+		}
+	}
+	if v, ok := os.LookupEnv("NSQ_CONCURRENCY"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			config.Nsq.Concurrency = n
+		}
 	}
 
 	config.init()
-
 	return config
 }
 
